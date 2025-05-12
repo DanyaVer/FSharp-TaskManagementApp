@@ -22,7 +22,7 @@ let main argv =
     let user2 : User = { Id = UserId 2; Name = "Андрій" }
     let project1 : Project = { Id = 101; Name = "Реліз v1.0" }
 
-    // Створення завдань з використанням конвеєрів (Вимога 3.f)
+    // Створення завдань з використанням конвеєрів
     let task1 =
         createTask 1 "Налаштувати середовище"
         |> addTaskDescription "Встановити .NET SDK та VS Code/Rider"

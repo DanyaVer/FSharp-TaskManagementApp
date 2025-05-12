@@ -5,26 +5,26 @@ type TaskId = int
 type UserId = UserId of int
 type ProjectId = int
 
-// Розмічене об'єднання для Пріоритету (Вимога 3.c)
+// Розмічене об'єднання для Пріоритету
 type Priority =
     | Low
     | Medium
     | High
 
-// Розмічене об'єднання для Статусу (Вимога 3.c)
+// Розмічене об'єднання для Статусу
 type Status =
     | New
     | InProgress
     | Done
     | Blocked
 
-// Запис для Користувача (Вимога 3.b)
+// Запис для Користувача
 type User = { Id: UserId; Name: string }
 
-// Запис для Проєкту (Вимога 3.b)
+// Запис для Проєкту
 type Project = { Id: ProjectId; Name: string }
 
-// Запис для Завдання (Вимога 3.b)
+// Запис для Завдання
 type Task =
     { Id: TaskId
       Title: string
