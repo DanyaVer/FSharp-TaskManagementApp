@@ -1,6 +1,17 @@
-﻿module Operations
+﻿module TaskManagementApp.Operations
 
-open Domain
+open TaskManagementApp.Domain
+
+/// <summary>
+/// Узагальнена функція для пошуку сутності за її ID у колекції.
+/// Сутність повинна мати властивість 'Id'.
+/// </summary>
+let inline tryFindById<'TEntity, 'TId when 'TEntity: (member Id: 'TId) and 'TId: equality>
+    (idToFind: 'TId)
+    (collection: seq<'TEntity>)
+    : 'TEntity option =
+    collection |> Seq.tryFind (fun item -> item.Id = idToFind)
+
 
 // --- Функції для створення та оновлення завдань ---
 
@@ -12,7 +23,8 @@ let createTask (id: TaskId) (title: string) : Task =
       AssignedTo = None
       Project = None
       CurrentStatus = New
-      CurrentPriority = Medium }
+      CurrentPriority = Medium
+      Tags = Set.empty }
 
 // Оновлення статусу завдання
 let updateTaskStatus (newStatus: Status) (task: Task) : Task = { task with CurrentStatus = newStatus }
@@ -33,24 +45,64 @@ let addTaskDescription (description: string) (task: Task) : Task =
     { task with
         Description = Some description }
 
+// Додавання тегу до завдання
+let addTagToTask (tag: string) (task: Task) : Task =
+    { task with
+        Tags = Set.add tag task.Tags }
+
+// Видалення тегу з завдання
+let removeTagFromTask (tag: string) (task: Task) : Task =
+    { task with
+        Tags = Set.remove tag task.Tags }
+
+
+// --- Функції для роботи з колекцією завдань ---
+
+/// <summary>
+/// Додає завдання до колекції Map. Повертає оновлену колекцію.
+/// Якщо завдання з таким ID вже існує, воно буде замінене.
+/// </summary>
+let addTaskToCollection (task: Task) (taskMap: Map<TaskId, Task>) : Map<TaskId, Task> = Map.add task.Id task taskMap
+
+/// <summary>
+/// Видаляє завдання з колекції Map. Повертає OperationResult.
+/// </summary>
+let removeTaskFromCollection
+    (taskId: TaskId)
+    (taskMap: Map<TaskId, Task>)
+    : OperationResult<Map<TaskId, Task>, OperationError> =
+    match Map.containsKey taskId taskMap with
+    | true -> Success(Map.remove taskId taskMap)
+    | false -> Failure(ItemNotFound $"Завдання з ID {taskId} не знайдено для видалення.")
+
+/// <summary>
+/// Отримує завдання з колекції Map за ID. Використовує Option.
+/// </summary>
+let getTaskFromCollectionById (taskId: TaskId) (taskMap: Map<TaskId, Task>) : Task option = Map.tryFind taskId taskMap
+
 // Оновлює завдання у списку і повертає новий список
-let tryUpdateTaskInList (taskIdToUpdate: TaskId) (updateFn: Task -> Task) (taskList: Task list) : Task list option =
-    match taskList |> List.tryFind (fun t -> t.Id = taskIdToUpdate) with
+let tryUpdateTaskInMap
+    (taskIdToUpdate: TaskId)
+    (updateFn: Task -> Task)
+    (taskMap: Map<TaskId, Task>)
+    : OperationResult<Map<TaskId, Task>, OperationError> =
+    match Map.tryFind taskIdToUpdate taskMap with
     | Some taskToUpdate ->
         let updatedTask = updateFn taskToUpdate
 
-        let newList =
-            taskList |> List.map (fun t -> if t.Id = taskIdToUpdate then updatedTask else t)
+        if updatedTask.Id <> taskIdToUpdate then
+            Failure(ValidationError "Функція оновлення не повинна змінювати ID завдання.")
+        else
+            Success(Map.add updatedTask.Id updatedTask taskMap) // Замінює існуюче
+    | None -> Failure(TaskNotFound taskIdToUpdate)
 
-        Some newList
-    | None -> None
-
-// Оновлює завдання, якщо існує, і повертає оновлений список (або той же)
-let updateTaskInList (taskIdToUpdate: TaskId) (updateFn: Task -> Task) (taskList: Task list) : Result<Task list, UpdateError> =
-    match tryUpdateTaskInList taskIdToUpdate updateFn taskList with
-        | Some newTaskList -> Ok newTaskList
-        | None -> Error (TaskNotFound taskIdToUpdate)
-
+// Оновлює завдання, якщо існує, і повертає оновлений список
+let updateTaskInMap (taskIdToUpdate: TaskId) (updateFn: Task -> Task) (taskMap: Map<TaskId, Task>) : Map<TaskId, Task> =
+    match tryUpdateTaskInMap taskIdToUpdate updateFn taskMap with
+    | Success newTaskMap -> newTaskMap
+    | Failure(TaskNotFound id) -> raise (TaskNotFoundForUpdateException id)
+    | Failure(ValidationError msg) -> failwith $"Помилка валідації при оновленні завдання з ID {taskIdToUpdate}: {msg}"
+    | Failure error -> failwith $"Помилка при оновленні завдання з ID {taskIdToUpdate}: {error}"
 
 /// <summary>
 /// Намагається замінити завдання у списку на оновлене.
@@ -58,19 +110,18 @@ let updateTaskInList (taskIdToUpdate: TaskId) (updateFn: Task -> Task) (taskList
 /// Повертає None, якщо завдання з ID оновлюваного завдання не знайдено у списку.
 /// </summary>
 /// <param name="taskToUpdate">Завдання, яке потрібно оновити (з новим станом).</param>
-/// <param name="taskList">Поточний список завдань.</param>
+/// <param name="taskMap">Поточний список завдань.</param>
 /// <returns>
 /// <c>Some</c> з новим списком, якщо завдання знайдено та замінено;
 /// інакше <c>None</c>.
 /// </returns>
-let tryReplaceTaskInList (taskToUpdate: Task) (taskList: Task list) : Task list option =
-    match taskList |> List.tryFind (fun t -> t.Id = taskToUpdate.Id) with
-    | Some _ ->
-        let newList =
-            taskList |> List.map (fun t -> if t.Id = taskToUpdate.Id then taskToUpdate else t)
-
-        Some newList
-    | None -> None
+let tryReplaceTaskInMap
+    (taskToUpdate: Task)
+    (taskMap: Map<TaskId, Task>)
+    : OperationResult<Map<TaskId, Task>, OperationError> =
+    match Map.tryFind taskToUpdate.Id taskMap with
+    | Some _ -> Success(Map.add taskToUpdate.Id taskToUpdate taskMap) // Замінює існуюче
+    | None -> Failure(TaskNotFound taskToUpdate.Id)
 
 /// <summary>
 /// Замінює завдання у списку на оновлене.
@@ -78,35 +129,46 @@ let tryReplaceTaskInList (taskToUpdate: Task) (taskList: Task list) : Task list 
 /// Якщо завдання не знайдено, генерує виняток <see cref="TaskNotFoundForUpdateException"/>.
 /// </summary>
 /// <param name="taskToUpdate">Завдання, яке потрібно оновити (з новим станом).</param>
-/// <param name="taskList">Поточний список завдань.</param>
+/// <param name="taskMap">Поточний список завдань.</param>
 /// <returns>Новий список завдань з оновленим завданням.</returns>
 /// <exception cref="TaskNotFoundForUpdateException">
-/// Генерується, якщо завдання з ID <paramref name="taskToUpdate"/> не знайдено у списку <paramref name="taskList"/>.
+/// Генерується, якщо завдання з ID <paramref name="taskToUpdate"/> не знайдено у списку <paramref name="taskMap"/>.
 /// </exception>
-let replaceTaskInList (taskToUpdate: Task) (taskList: Task list) : Task list =
-    match tryReplaceTaskInList taskToUpdate taskList with
-        | Some newTaskList -> newTaskList
-        | None -> raise (TaskNotFoundForUpdateException taskToUpdate.Id)
-
+let replaceTaskInMap (taskToUpdate: Task) (taskMap: Map<TaskId, Task>) : Map<TaskId, Task> =
+    match tryReplaceTaskInMap taskToUpdate taskMap with
+    | Success newTaskMap -> newTaskMap
+    | Failure(TaskNotFound id) -> raise (TaskNotFoundForUpdateException taskToUpdate.Id)
+    | Failure error -> failwith $"Помилка при оновленні завдання з ID {taskToUpdate.Id}: {error}"
 
 
 // --- Функції для отримання/фільтрації завдань ---
 
+// Отримання всіх завдань як список
+let getAllTasks (taskMap: Map<TaskId, Task>) : Task list = taskMap |> Map.toList |> List.map snd
+
+let getTasksByFilter (filter: Task -> bool) (taskMap: Map<TaskId, Task>) : Task list =
+    taskMap |> Map.values |> Seq.filter filter |> List.ofSeq
+
 // Отримання завдань за статусом
-let getTasksByStatus (status: Status) (taskList: Task list) : Task list =
-    taskList |> List.filter (fun task -> task.CurrentStatus = status)
+let getTasksByStatus (status: Status) (taskMap: Map<TaskId, Task>) : Task list =
+    getTasksByFilter (fun task -> task.CurrentStatus = status) taskMap
 
 // Отримання завдань за пріоритетом
-let getTasksByPriority (priority: Priority) (taskList: Task list) : Task list =
-    taskList |> List.filter (fun task -> task.CurrentPriority = priority)
+let getTasksByPriority (priority: Priority) (taskMap: Map<TaskId, Task>) : Task list =
+    getTasksByFilter (fun task -> task.CurrentPriority = priority) taskMap
 
 // Отримання завдань за користувачем
-let getTasksByUser (userId: UserId) (taskList: Task list) : Task list =
-    taskList
-    |> List.filter (fun task ->
-        match task.AssignedTo with
-        | Some assignedId -> if assignedId = userId then true else false
-        | None -> false)
+let getTasksByUser (userId: UserId) (taskMap: Map<TaskId, Task>) : Task list =
+    getTasksByFilter
+        (fun task ->
+            match task.AssignedTo with
+            | Some assignedId -> if assignedId = userId then true else false
+            | None -> false)
+        taskMap
+
+// Отримання завдань за тегом
+let getTasksByTag (tag: string) (taskMap: Map<TaskId, Task>) : Task list =
+    getTasksByFilter (fun task -> Set.contains tag task.Tags) taskMap
 
 
 // --- Допоміжні та інші функції ---
@@ -128,8 +190,14 @@ let formatTaskInfo (task: Task) : string =
         | Some desc -> $"Опис: %s{desc}"
         | None -> "Опис відсутній"
 
+    let tagsStr =
+        if Set.isEmpty task.Tags then
+            "Теги відсутні"
+        else
+            "Теги: " + (task.Tags |> Set.toList |> String.concat ", ")
+
     sprintf
-        "Завдання ID: %d | Назва: %s\n  Статус: %A | Пріоритет: %A\n  %s\n  %s\n  %s\n------------------------------------"
+        "Завдання ID: %d | Назва: %s\n  Статус: %A | Пріоритет: %A\n  %s\n  %s\n  %s\n  %s\n-------------------------------"
         task.Id
         task.Title
         task.CurrentStatus
@@ -137,11 +205,12 @@ let formatTaskInfo (task: Task) : string =
         descriptionStr
         assignedUserStr
         projectStr
+        tagsStr
 
 // Отримання кортежа (кількість завдань, список назв)
-let getTaskTitlesAndCount (taskList: Task list) : (int * string list) =
-    let count = List.length taskList
-    let titles = taskList |> List.map (fun task -> task.Title)
+let getTaskTitlesAndCount (taskMap: Map<TaskId, Task>) : (int * string list) =
+    let count = Map.count taskMap
+    let titles = taskMap |> Map.values |> Seq.map (fun task -> task.Title) |> List.ofSeq
     (count, titles)
 
 // Функція для отримання назви завдання

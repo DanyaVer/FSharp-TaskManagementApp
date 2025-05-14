@@ -1,4 +1,4 @@
-﻿module Domain
+﻿module TaskManagementApp.Domain
 
 // Псевдоніми типів для ID
 type TaskId = int
@@ -32,9 +32,17 @@ type Task =
       AssignedTo: UserId option
       Project: ProjectId option
       CurrentStatus: Status
-      CurrentPriority: Priority }
+      CurrentPriority: Priority
+      Tags: Set<string> }
 
-type UpdateError =
+
+type OperationError =
     | TaskNotFound of TaskId
+    | ItemNotFound of string
+    | ValidationError of string
+
+type OperationResult<'Success, 'Error> =
+    | Success of 'Success
+    | Failure of 'Error
 
 exception TaskNotFoundForUpdateException of TaskId
