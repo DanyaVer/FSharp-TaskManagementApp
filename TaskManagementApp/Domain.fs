@@ -18,11 +18,27 @@ type Status =
     | Done
     | Blocked
 
+type IDisplayable =
+    abstract member GetDisplayString: unit -> string
+
 // Запис для Користувача
-type User = { Id: UserId; Name: string }
+type User =
+    { Id: UserId
+      Name: string }
+
+    interface IDisplayable with
+        member this.GetDisplayString() =
+            $"Користувач: %s{this.Name} (ID: %A{this.Id})"
+
 
 // Запис для Проєкту
-type Project = { Id: ProjectId; Name: string }
+type Project =
+    { Id: ProjectId
+      Name: string }
+
+    interface IDisplayable with
+        member this.GetDisplayString() =
+            $"Проєкт: %s{this.Name} (ID: %d{this.Id})"
 
 // Запис для Завдання
 type Task =
@@ -35,10 +51,14 @@ type Task =
       CurrentPriority: Priority
       Tags: Set<string> }
 
+    interface IDisplayable with
+        member this.GetDisplayString() =
+            let statusStr = sprintf "%A" this.CurrentStatus // %A для DU
+            let priorityStr = sprintf "%A" this.CurrentPriority
+            $"Завдання '%s{this.Title}' (ID: %d{this.Id}) - Статус: %s{statusStr}, Пріоритет: %s{priorityStr}"
 
 type OperationError =
     | TaskNotFound of TaskId
-    | ItemNotFound of string
     | ValidationError of string
 
 type OperationResult<'Success, 'Error> =

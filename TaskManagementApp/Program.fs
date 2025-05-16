@@ -3,6 +3,7 @@
 open System
 open TaskManagementApp.Domain
 open TaskManagementApp.Operations
+open TaskManagementApp.TaskManagerService
 
 // Допоміжна функція для друку списку завдань
 let printTaskList title (tasksToPrint: #seq<Task>) = // #seq для гнучкості
@@ -29,7 +30,7 @@ let handleOperationResult<'Success, 'Error>
 [<EntryPoint>]
 let main argv =
     Console.OutputEncoding <- Text.Encoding.UTF8
-    printfn "--- Моделювання системи керування завданнями (v2.0) ---"
+    printfn "--- Моделювання системи керування завданнями (v3.0) ---"
 
     // --- Створення початкових даних ---
     let user1: User = { Id = UserId 1; Name = "Олена" }
@@ -45,38 +46,32 @@ let main argv =
         |> addTagToTask "setup"
         |> addTagToTask "devops"
 
-    let task2 =
-        createTask 2 "Написати типи даних"
-        |> assignUserToTask user1.Id
-        |> assignTaskToProject project1.Id
-        |> updateTaskStatus InProgress
-        |> addTagToTask "coding"
-        |> addTagToTask "backend"
+    let initialTasksForService = [task1; createTask 2 "Написати API"]
+    
+    let taskService = TaskManagerService(initialTasksForService)
+    printfn "Початкова кількість завдань у сервісі: %d" taskService.TaskCount
+    
+    let task3 = taskService.AddTask(3, "Тестування модуля", description = "Покрити тестами новий API", priority = Priority.Medium)
+    printfn "Завдання додано через сервіс: %s" ((task3 :> IDisplayable).GetDisplayString())
+    printfn "Нова кількість завдань у сервісі: %d" taskService.TaskCount
 
-    let task3 =
-        createTask 3 "Реалізувати логіку"
-        |> assignUserToTask user2.Id
-        |> assignTaskToProject project1.Id
-        |> addTagToTask "coding"
+    let updateStatusFn (t: Task) = { t with CurrentStatus = Status.InProgress }
+    let updateOpResult = taskService.UpdateTask(task1.Id, updateStatusFn)
+    handleOperationResult (sprintf "Оновлення завдання ID %d через сервіс" task1.Id) updateOpResult (fun _ ->
+        match taskService.TryGetTaskById(task1.Id) with
+        | Some updatedT1 -> printfn "Оновлене завдання ID 1: %s" ((updatedT1 :> IDisplayable).GetDisplayString())
+        | None -> ()
+    )
 
-    let originalTask4 = createTask 4 "Написати тести" |> addTagToTask "testing"
+    printfn "Всі завдання з сервісу:"
+    taskService.AllTasks |> Seq.iter (fun t -> printDisplayableItem (t :> IDisplayable))
 
-    let task5 =
-        createTask 5 "Підготувати документацію"
-        |> assignUserToTask user1.Id
-        |> updateTaskStatus Blocked
-        |> updateTaskPriority Low
-        |> addTagToTask "docs"
 
-    let mutable tasksMap: Map<TaskId, Task> =
-        [ task1; task2; task3; originalTask4; task5 ]
-        |> List.map (fun t -> (t.Id, t)) // Створюємо список пар (ключ, значення)
-        |> Map.ofList // Створюємо Map зі списку пар
-
-    printTaskList "Початковий список завдань (з Map)" (getAllTasks tasksMap)
+    printTaskList "Початковий список завдань" (getAllTasks tasksMap)
 
     // --- Демонстрація оновлення завдання у Map з використанням OperationResult ---
     printfn "\n--- Демонстрація оновлення завдання у Map ---"
+
     let updateFnForTask4 task =
         task
         |> updateTaskStatus Done
@@ -120,7 +115,7 @@ let main argv =
     // --- Демонстрація власної узагальненої функції tryFindById ---
     printfn "\n--- Демонстрація узагальненої функції tryFindById ---"
 
-    let users : User seq =
+    let users: User seq =
         [ { Id = UserId 10
             Name = "Тест Користувач1" }
           { Id = UserId 20
@@ -137,7 +132,7 @@ let main argv =
 
     // --- Демонстрація видалення завдання з використанням OperationResult ---
     printfn "\n--- Демонстрація видалення завдання ---"
-    let taskIdToRemove = task3.Id
+    let taskIdToRemove = task5.Id
     let removalResult = removeTaskFromCollection taskIdToRemove tasksMap
 
     handleOperationResult "Видалення завдання 3" removalResult (fun newMap ->
@@ -150,10 +145,15 @@ let main argv =
 
 
     // --- Демонстрація кортежа та композиції ---
-    let (taskCount, taskTitles) = getTaskTitlesAndCount tasksMap
     printfn "\n--- Демонстрація кортежа ---"
-    printfn "Загальна кількість завдань: %d" taskCount
-    printfn "Назви завдань: %A" taskTitles
 
-    printfn "\n--- Завершення демонстрації (v2.0) ---"
+    let taskTitlesAndCountDisplayable (taskCount, taskTitles) =
+        { new IDisplayable with
+            member _.GetDisplayString() =
+                let titlesStr = String.concat ", " taskTitles
+                sprintf "Зведена інформація: Всього завдань - %d. Назви: [%s]" taskCount titlesStr }
+
+    printDisplayableItem (taskTitlesAndCountDisplayable (getTaskTitlesAndCount tasksMap))
+
+    printfn "\n--- Завершення демонстрації (v3.0) ---"
     0

@@ -12,7 +12,6 @@ let inline tryFindById<'TEntity, 'TId when 'TEntity: (member Id: 'TId) and 'TId:
     : 'TEntity option =
     collection |> Seq.tryFind (fun item -> item.Id = idToFind)
 
-
 // --- Функції для створення та оновлення завдань ---
 
 // Створення нового завдання
@@ -73,7 +72,7 @@ let removeTaskFromCollection
     : OperationResult<Map<TaskId, Task>, OperationError> =
     match Map.containsKey taskId taskMap with
     | true -> Success(Map.remove taskId taskMap)
-    | false -> Failure(ItemNotFound $"Завдання з ID {taskId} не знайдено для видалення.")
+    | false -> Failure(TaskNotFound taskId)
 
 /// <summary>
 /// Отримує завдання з колекції Map за ID. Використовує Option.
@@ -218,3 +217,7 @@ let getTaskTitle (task: Task) : string = task.Title
 
 // Функція для перетворення рядка у верхній регістр
 let toUpper (str: string) : string = str.ToUpper()
+
+// Допоміжна функція для виведення інформації за допомогою interface IDisplayable
+let printDisplayableItem (item: IDisplayable) =
+    printfn "Інформація з IDisplayable: %s" (item.GetDisplayString())
