@@ -1,4 +1,4 @@
-﻿module TaskManagementApp.Domain
+﻿module TaskManagementLib.Domain
 
 // Псевдоніми типів для ID
 type TaskId = int

@@ -1,6 +1,6 @@
-﻿module TaskManagementApp.Operations
+﻿module TaskManagementLib.Operations
 
-open TaskManagementApp.Domain
+open TaskManagementLib.Domain
 
 /// <summary>
 /// Узагальнена функція для пошуку сутності за її ID у колекції.
@@ -207,9 +207,9 @@ let formatTaskInfo (task: Task) : string =
         tagsStr
 
 // Отримання кортежа (кількість завдань, список назв)
-let getTaskTitlesAndCount (taskMap: Map<TaskId, Task>) : (int * string list) =
-    let count = Map.count taskMap
-    let titles = taskMap |> Map.values |> Seq.map (fun task -> task.Title) |> List.ofSeq
+let getTaskTitlesAndCount (tasks: #seq<Task>) : (int * string list) =
+    let count = Seq.length tasks
+    let titles = tasks |> Seq.map (fun task -> task.Title) |> List.ofSeq
     (count, titles)
 
 // Функція для отримання назви завдання

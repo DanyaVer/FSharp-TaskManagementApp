@@ -1,7 +1,7 @@
-﻿module TaskManagementApp.TaskManagerService
+﻿module TaskManagementLib.TaskManagerService
 
-open TaskManagementApp.Domain
-open TaskManagementApp.Operations
+open TaskManagementLib.Domain
+open TaskManagementLib.Operations
 
 [<AllowNullLiteral>]
 type TaskManagerService =
