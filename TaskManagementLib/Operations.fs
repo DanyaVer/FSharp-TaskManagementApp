@@ -219,5 +219,22 @@ let getTaskTitle (task: Task) : string = task.Title
 let toUpper (str: string) : string = str.ToUpper()
 
 // Допоміжна функція для виведення інформації за допомогою interface IDisplayable
-let printDisplayableItem (item: IDisplayable) =
-    printfn "Інформація з IDisplayable: %s" (item.GetDisplayString())
+let printDisplayableItem (item: #IDisplayable) =
+    printfn "%s" (item.GetDisplayString())
+
+
+// Допоміжна функція для виведення інформації за допомогою interface IDisplayable для колекції
+let printDisplayableItemSeq (items: #IDisplayable seq) (collectionName: string) =
+    printfn "\n--- %s ---" collectionName
+    items |> Seq.iter printDisplayableItem
+
+
+// for 4.0 lab
+
+// Допоміжна функція для конвертації пріоритету в числовий еквівалент для розрахунків
+let priorityToScore (priority: Priority) : int =
+    match priority with
+    | Priority.Low -> 1
+    | Priority.Medium -> 2
+    | Priority.High -> 3
+    | _ -> 0 // Для UnknownPriority

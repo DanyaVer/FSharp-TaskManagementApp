@@ -1,0 +1,8 @@
+Id,Title,Description,AssignedTo_UserId,Project_Id,Status,Priority,Tags
+1,Setup Environment,"Install .NET SDK, VS Code",1,101,Done,High,"setup;devops"
+2,Write Data Types,,1,101,InProgress,High,"coding;backend"
+3,Implement Logic,,2,101,New,Medium,"coding"
+4,Write Tests,,,,New,Medium,"testing"
+5,Prepare Documentation,"Write user and dev docs",1,,Blocked,left,"docs;critical"
+6,Deploy to Staging,,,102,,,"devops;deployment"
+7,Client Meeting,"Discuss new features",2,,InProgress,Medium,"communication"

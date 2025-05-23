@@ -10,6 +10,14 @@ type Priority =
     | Low
     | Medium
     | High
+    | UnknownPriority
+
+    static member FromString(s: string) =
+        match s.ToLowerInvariant() with
+        | "low" -> Low
+        | "medium" -> Medium
+        | "high" -> High
+        | _ -> UnknownPriority
 
 // Розмічене об'єднання для Статусу
 type Status =
@@ -17,6 +25,16 @@ type Status =
     | InProgress
     | Done
     | Blocked
+    | UnknownStatus
+
+
+    static member FromString(s: string) =
+        match s.ToLowerInvariant() with
+        | "new" -> New
+        | "inprogress" -> InProgress
+        | "done" -> Done
+        | "blocked" -> Blocked
+        | _ -> UnknownStatus
 
 type IDisplayable =
     abstract member GetDisplayString: unit -> string
@@ -53,9 +71,46 @@ type Task =
 
     interface IDisplayable with
         member this.GetDisplayString() =
-            let statusStr = sprintf "%A" this.CurrentStatus // %A для DU
-            let priorityStr = sprintf "%A" this.CurrentPriority
-            $"Завдання '%s{this.Title}' (ID: %d{this.Id}) - Статус: %s{statusStr}, Пріоритет: %s{priorityStr}"
+            let statusStr = sprintf "Статус: %A" this.CurrentStatus
+            let priorityStr = sprintf "Пріоритет: %A" this.CurrentPriority
+
+            let lines =
+                [ yield statusStr
+                  yield priorityStr
+
+                  match this.Description with
+                  | Some d when not (System.String.IsNullOrWhiteSpace d) -> yield $"Опис: {d}"
+                  | _ -> ()
+
+                  match this.AssignedTo with
+                  | Some userId -> yield $"Призначено користувачу ID {userId}"
+                  | None -> ()
+
+                  match this.Project with
+                  | Some projectId -> yield $"Проєкт ID {projectId}"
+                  | None -> ()
+
+                  if not (Set.isEmpty this.Tags) then
+                      yield "Теги: " + (this.Tags |> String.concat ", ") ]
+            
+            $"Завдання: '{this.Title}' (ID: {this.Id})" +
+            String.concat "\n - " lines
+
+
+type TasksPerUserStats =
+    { UserId: UserId
+      UserName: string
+      TaskCount: int }
+
+type AveragePriorityPerStatus =
+    { Status: Status
+      AveragePriorityScore: float }
+
+type ProjectTaskCount =
+    { ProjectId: ProjectId option
+      ProjectName: string
+      TaskCount: int }
+
 
 type OperationError =
     | TaskNotFound of TaskId
