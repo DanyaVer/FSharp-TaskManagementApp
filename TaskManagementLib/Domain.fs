@@ -91,7 +91,7 @@ type Task =
                   | None -> ()
 
                   if not (Set.isEmpty this.Tags) then
-                      yield "Теги: " + (this.Tags |> String.concat ", ") ]
+                      yield "Теги: " + (this.Tags |> Seq.sort |> String.concat ", ") ]
             
             $"Завдання: '{this.Title}' (ID: {this.Id})" +
             String.concat "\n - " lines
